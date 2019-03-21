@@ -1,9 +1,8 @@
 import logging
-import pandas as pd
+import numpy as np
 import dask
 import dask.dataframe as dd
 from dask.array import fft
-import numpy as np
 from loader import DataLoader
 
 
@@ -27,8 +26,8 @@ class LANLDataLoader(DataLoader):
 
         # prepare variables set during data loading
         self._input_shape = None
-        self._fft_scaler = None
-        self._stat_scaler = None
+        self._fft_quartiles = None
+        self._stat_quartiles = None
 
     def get_index(self):
         return np.arange(self._train_file_length)
@@ -49,16 +48,27 @@ class LANLDataLoader(DataLoader):
         ts_resample = self.overlapping_resample(ts_sample, st_size, overlap_size)
         sample_statistics = self.get_summary_statistics(ts_resample)
         logging.debug('Performing DFT...')
-        stdft_samples = self.filtered_fft(ts_resample, self._t_step, fft_f_cutoff)
+        stdft_samples = np.abs(self.filtered_fft(ts_resample, self._t_step, fft_f_cutoff))
+
+        # scale data
+        logging.debug('Scaling data...')
+        if fit_transform:
+            self._stat_quartiles = dask.array.percentile(sample_statistics.flatten(), q=[20, 50, 80]).compute()
+            self._fft_quartiles = np.percentile(stdft_samples, q=[20, 50, 80])
+        if self._stat_quartiles is not None and self._fft_quartiles is not None:
+            scaled_sample_statistics = (sample_statistics - self._stat_quartiles[1]) / (self._stat_quartiles[2] - self._stat_quartiles[0])
+            scaled_stdft_samples = (stdft_samples - self._fft_quartiles[1]) / (self._fft_quartiles[2] - self._fft_quartiles[0])
+        else:
+            raise ValueError('fit_transform set as False but no scaler fit exists')
 
         # set the input shape for dynamically creating neural network models later
         logging.debug('Calculating input shapes...')
         self._input_shape = [
-            tuple(sample_statistics.shape[1:]),
-            tuple(stdft_samples[0].compute().shape)
+            tuple(scaled_sample_statistics.shape[1:]),
+            tuple(scaled_stdft_samples[0].compute().shape)
         ]
 
-        data = [sample_statistics, stdft_samples]
+        data = [scaled_sample_statistics, scaled_stdft_samples]
         target = self._data_array[sample_index + self._sample_length, 1]
 
         logging.debug('Done')
