@@ -1,6 +1,8 @@
 import pandas as pd
 
 
+# TODO: add another class layer to seperate functionality for time series and binary classification
+# TODO: add detailed documentation on the class
 class DataLoader:
     def __init__(self):
         pass
@@ -8,7 +10,7 @@ class DataLoader:
     def get_index(self):
         raise NotImplementedError
 
-    def load_train_data(self, split_index=None, fit_transform=True, **loader_args):
+    def load_train_data(self, fit_transform=True, **loader_args):
         raise NotImplementedError
 
     def load_test_data(self, **loader_args):
@@ -17,14 +19,32 @@ class DataLoader:
     def get_input_shape(self):
         raise NotImplementedError
 
-    def load_train_val(self, train_index, val_index, loader_args={}):
-        train_data, train_target = self.load_train_data(split_index=train_index, fit_transform=True, **loader_args)
-        val_data, val_target = self.load_train_data(split_index=val_index, fit_transform=False, **loader_args)
+    def load_train_val(self, train_args=None, val_args=None, loader_args=None):
+        # replace default arguments with empty dicts to allow enumeration
+        # in later function calls to work properly
+        if train_args is None:
+            train_args = {}
+        if val_args is None:
+            val_args = {}
+        if loader_args is None:
+            loader_args = {}
+
+        train_data, train_target = self.load_train_data(fit_transform=True, **train_args, **loader_args)
+        val_data, val_target = self.load_train_data(fit_transform=False, **val_args, **loader_args)
         return train_data, train_target, val_data, val_target
 
-    def load_train_test(self, loader_args={}):
-        train_data, train_target = self.load_train_data(fit_transform=True, **loader_args)
-        test_data, test_target = self.load_test_data(**loader_args)
+    def load_train_test(self, train_args=None, test_args=None, loader_args=None):
+        # replace default arguments with empty dicts to allow enumeration
+        # in later function calls to work properly
+        if train_args is None:
+            train_args = {}
+        if test_args is None:
+            test_args = {}
+        if loader_args is None:
+            loader_args = {}
+
+        train_data, train_target = self.load_train_data(fit_transform=True, **train_args, **loader_args)
+        test_data, test_target = self.load_test_data(**test_args, **loader_args)
         return train_data, train_target, test_data, test_target
 
     @staticmethod

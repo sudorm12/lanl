@@ -167,8 +167,16 @@ class MultiLSTMWithMetadata:
 
 class MultiLSTM:
     def __init__(self, input_shapes, lstm_units, dense_units):
+        # TODO: add support for l2 regularization
+        # TODO: add support for dropout layers
+        # TODO: add support for GPU accelerated LSTM layers
+        # TODO: add support for alternate optimizers
+        # TODO: add batch size and epochs as parameters
+
+        # check if dense units is int and convert to single-item list if so
         if isinstance(dense_units, int):
             dense_units = [dense_units]
+            # TODO: allow int to represent multiple layers at the same width
 
         if len(input_shapes) != len(lstm_units):
             raise ValueError('input shapes and units iterables must have same number of elements')
@@ -193,7 +201,8 @@ class MultiLSTM:
         self._model.compile(optimizer='adam', loss='mse', metrics=['mse'])
 
     def fit(self, data_train, target_train, validation_data=None, verbose=2):
-        history = self._model.fit(data_train, target_train, validation_data=validation_data, verbose=verbose)
+        history = self._model.fit(data_train, target_train, validation_data=validation_data, 
+                                  verbose=verbose, epochs=25, batch_size=64)
         return history
 
     def predict(self, data):

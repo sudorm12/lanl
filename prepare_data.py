@@ -41,6 +41,24 @@ class LANLDataLoader(DataLoader):
 
     def load_train_data(self, split_index=None, fit_transform=True, n_samples=200,
                         split_length=50000000, st_size=10000, overlap_size=5000, fft_f_cutoff=500):
+        """
+        Load data from continuous file provided as training data for earthquake prediction. Selects
+        n_samples random subsets of length as defined in the LANLDataLoader constructor. Returns a
+        two-item tuple (data, target). Two data matrices provided are a rolling statistical summary
+        and a short-time discrete fourier transform (ST-DFT) analysis.
+        :param split_index: TBD
+        :param fit_transform: True to scale based on data selected in this draw, False to scale based
+        on stored scaling from a previous draw
+        :param n_samples: number of random subsets to draw from the input data
+        :param split_length: TBD
+        :param st_size: number of samples for each rolling block to calculate statistics and DFT
+        :param overlap_size: overlap size between each rolling block
+        :param fft_f_cutoff: max frequency (in kHz) of returned fft based on timestep defined in
+        LANLDataLoader constructor
+        :return: two-item tuple (data, target), data being a two-item list returing rolling statistical
+        calculations and ST-DFT as a dask array of shape (samples, calculations/frequencies, timesteps) and
+        target being a dask array of shape (samples, time_to_failure)
+        """
         # get random samples from time series data and perform transformations on those samples
         logging.debug('Preparing {} random samples...'.format(n_samples))
         ts_sample, sample_index = self.get_random_samples(self._data_array[:, 0], n_samples, self._sample_length)
