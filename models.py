@@ -166,43 +166,152 @@ class MultiLSTMWithMetadata:
 
 
 class MultiLSTM:
-    def __init__(self, input_shapes, lstm_units, dense_units):
-        # TODO: add support for l2 regularization
-        # TODO: add support for dropout layers
-        # TODO: add support for GPU accelerated LSTM layers
-        # TODO: add support for alternate optimizers
-        # TODO: add batch size and epochs as parameters
+    def __init__(self, input_shapes, lstm_units, dense_units,
+                 lstm_l2=0, lstm_dropout=0, lstm_gpu=False,
+                 dense_l2=0, dense_dropout=0.2,
+                 optimizer='adam'):
+        """
+        Create a keras network with multiple inputs and a single output for time-series or otherwise sequenced data.
+        Each sequence input will be connected to an LSTM layer, and the LSTM layers will all be combined and
+        connected to one or more dense layers.
+        :param input_shapes: a list of tuples, each tuple being two dimensional with order (timesteps, features)
+        :param lstm_units: list or int, the number of units for each lstm
+        :param dense_units: list or int, the number of units for each dense layer
+        :param lstm_l2: list or real, the level of l2 kernel regularization to apply to each lstm layer
+        :param lstm_dropout: list or real, the level of dropout to apply to each lstm layer
+        :param lstm_gpu: boolean, True to use the CuDNN optimized LSTM layer
+        :param dense_l2: list or real, the level of l2 regularization to apply to each dense layer
+        :param dense_dropout: list or real, the level of dropout to apply to each dense layer
+        :param optimizer: the type of optimizer to use when compiling the keras model
+        """
 
-        # check if dense units is int and convert to single-item list if so
-        if isinstance(dense_units, int):
-            dense_units = [dense_units]
-            # TODO: allow int to represent multiple layers at the same width
+        # determine if LSTM networks will be GPU accelerated
+        if lstm_gpu:
+            LSTMLayer = CuDNNLSTM
+        else:
+            LSTMLayer = LSTM
 
-        if len(input_shapes) != len(lstm_units):
-            raise ValueError('input shapes and units iterables must have same number of elements')
-
+        # these lists will end up containing the lstm input and output layers
         inputs = []
         lstms = []
+
+        # iterate over the provided input shapes and build up the lstm networks layer by layer
         for i, input_shape in enumerate(input_shapes):
+            # create the input layer
             lstm_input = Input(shape=input_shape, name='lstm_input_{}'.format(i))
+
+            # permute input layer dimensions from (timesteps, features) to (features, timesteps)
             lstm_permute = Permute(dims=(2, 1), name='lstm_permute_{}'.format(i))(lstm_input)
-            lstm = LSTM(units=lstm_units[i], name='lstm_{}'.format(i))(lstm_permute)
+
+            # determine the number of units the lstm should have
+            try:
+                units = lstm_units[i]
+            except TypeError:
+                units = int(lstm_units)
+            except IndexError:
+                units = lstm_units[-1]
+                print('Mismatch between input shape and lstm units, using last lstm unit value for input {}'.format(i))
+
+            # determine L2 regularization
+            try:
+                l2_reg = l2(lstm_l2[i])
+            except TypeError:
+                l2_reg = l2(lstm_l2)
+            except IndexError:
+                l2_reg = l2(lstm_l2[-1])
+                print('Mismatch between input shape and lstm l2 regularization values, using last lstm l2 value')
+
+            # determine dropout
+            try:
+                dropout = lstm_dropout[i]
+            except TypeError:
+                dropout = lstm_dropout
+            except IndexError:
+                dropout = lstm_dropout[-1]
+                print('Mismatch between input shape and lstm dropout values, using last lstm dropout value')
+
+            # create the lstm layer
+            lstm = LSTMLayer(
+                units=units,
+                kernel_regularizer=l2_reg,
+                dropout=dropout,
+                name='lstm_{}'.format(i)
+            )(lstm_permute)
+
+            # add lstm inputs and outputs to their respective lists
             inputs.append(lstm_input)
             lstms.append(lstm)
 
+        # combine lstm outputs together
         combined = concatenate(lstms, name='combined')
 
-        for i, units in enumerate(dense_units):
-            combined = Dense(units, name='combined_dense_{}'.format(i))(combined)
+        # add dense layers to the output of the lstms
+        try:
+            for i, units in enumerate(dense_units):
+                # determine L2 regularization
+                try:
+                    l2_reg = l2(lstm_l2[i])
+                except TypeError:
+                    l2_reg = l2(lstm_l2)
+                except IndexError:
+                    l2_reg = l2(lstm_l2[-1])
+                    print('Mismatch between input shape and lstm l2 regularization values, using last lstm l2 value')
 
+                # determine dropout
+                try:
+                    dropout = lstm_dropout[i]
+                except TypeError:
+                    dropout = lstm_dropout
+                except IndexError:
+                    dropout = lstm_dropout[-1]
+                    print('Mismatch between input shape and lstm dropout values, using last lstm dropout value')
+
+                # create a dense layer with dropout
+                combined = Dense(
+                    units,
+                    kernel_regularizer=l2_reg,
+                    name='combined_dense_{}'.format(i)
+                )(combined)
+                combined = Dropout(
+                    dropout,
+                    name='dropout_{}'.format(i)
+                )(combined)
+
+        # if dense_units appears to not be iterable
+        except TypeError:
+            # determine l2 regularization
+            try:
+                l2_reg = l2(dense_l2[0])
+            except TypeError:
+                l2_reg = l2(dense_l2)
+
+            # determine dropout
+            try:
+                dropout = dense_dropout[0]
+            except TypeError:
+                dropout = int(dense_dropout)
+
+            # create a single dense layer with dropout
+            combined = Dense(
+                int(dense_units),
+                kernel_regularizer=l2_reg,
+                name='combined_dense'
+            )(combined)
+            combined = Dropout(
+                dropout,
+                name='dropout'
+            )(combined)
+
+        # add an output layer
         output = Dense(1, name='output')(combined)
 
+        # initialize the model and compile
         self._model = Model(inputs=inputs, outputs=output)
-        self._model.compile(optimizer='adam', loss='mse', metrics=['mse'])
+        self._model.compile(optimizer=optimizer, loss='mse')
 
-    def fit(self, data_train, target_train, validation_data=None, verbose=2):
+    def fit(self, data_train, target_train, validation_data=None, verbose=2, batch_size=64, epochs=5):
         history = self._model.fit(data_train, target_train, validation_data=validation_data, 
-                                  verbose=verbose, epochs=25, batch_size=64)
+                                  verbose=verbose, epochs=epochs, batch_size=batch_size)
         return history
 
     def predict(self, data):

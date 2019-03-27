@@ -6,7 +6,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
     train_args = {
-        'n_samples': 200,
+        'n_samples': 100,
     }
     val_args = {
         'n_samples': 40
