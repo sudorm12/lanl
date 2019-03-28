@@ -309,9 +309,9 @@ class MultiLSTM:
         self._model = Model(inputs=inputs, outputs=output)
         self._model.compile(optimizer=optimizer, loss='mse')
 
-    def fit(self, data_train, target_train, validation_data=None, verbose=2, batch_size=64, epochs=5):
+    def fit(self, data_train, target_train, validation_data=None, verbose=2, batch_size=64, epochs=5, callbacks=None):
         history = self._model.fit(data_train, target_train, validation_data=validation_data, 
-                                  verbose=verbose, epochs=epochs, batch_size=batch_size)
+                                  verbose=verbose, epochs=epochs, batch_size=batch_size, callbacks=callbacks)
         return history
 
     def predict(self, data):
