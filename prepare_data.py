@@ -1,4 +1,5 @@
 import logging
+from os import listdir
 import numpy as np
 import dask
 import dask.dataframe as dd
@@ -35,9 +36,32 @@ class LANLDataLoader(DataLoader):
     def get_input_shape(self):
         return self._input_shape
 
-    def load_test_data(self, **loader_args):
-        # TODO: add functionality for loading test data
-        raise NotImplementedError
+    def load_test_data(self, st_size=10000, overlap_size=5000, fft_f_cutoff=500):
+        logging.debug('Preparing test data')
+
+        target_labels = sorted(listdir('data/test'))
+
+        test_dd = dd.read_csv('data/test/*.csv')
+        test_darray = test_dd['acoustic_data'].to_dask_array(lengths=True).reshape(-1, 150000)
+
+        logging.debug('Calculating rolling statistics...')
+        ts_resample = self.overlapping_resample(test_darray, st_size, overlap_size)
+        sample_statistics = self.get_summary_statistics(ts_resample)
+        logging.debug('Performing DFT...')
+        stdft_samples = np.abs(self.filtered_fft(ts_resample, self._t_step, fft_f_cutoff))
+
+        # scale data
+        logging.debug('Scaling data...')
+        if self._stat_quartiles is not None and self._fft_quartiles is not None:
+            scaled_sample_statistics = (sample_statistics - self._stat_quartiles[1]) / (self._stat_quartiles[2] - self._stat_quartiles[0])
+            scaled_stdft_samples = (stdft_samples - self._fft_quartiles[1]) / (self._fft_quartiles[2] - self._fft_quartiles[0])
+        else:
+            raise ValueError('fit_transform set as False but no scaler fit exists')
+
+        data = [scaled_sample_statistics, scaled_stdft_samples]
+
+        logging.debug('Done')
+        return data, target_labels
 
     def load_train_data(self, split_index=None, fit_transform=True, n_samples=200,
                         split_length=50000000, st_size=10000, overlap_size=5000, fft_f_cutoff=500):

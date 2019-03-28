@@ -1,0 +1,3 @@
+{
+'lstm_gpu': False
+}

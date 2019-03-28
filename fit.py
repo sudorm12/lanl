@@ -1,4 +1,8 @@
 import logging
+import re
+import ast
+from datetime import datetime
+import pandas as pd
 from prepare_data import LANLDataLoader
 from models import MultiLSTM
 from grid_search import ts_reg_grid_search
@@ -20,7 +24,17 @@ def test_basic_operation():
     multi_lstm = MultiLSTM(input_shapes, [8, 32], 64)
     history = multi_lstm.fit([data.compute() for data in train_data], train_target,
                              validation_data=([data.compute() for data in val_data], val_target))
-    return history
+
+    test_data, test_labels = loader.load_test_data()
+    predictions = multi_lstm.predict([data[:10, :].compute() for data in test_data])
+
+    regex = re.compile('.csv')
+    results_file_name = 'data/results/test_predictions_{:%Y%m%d_%H%M%S}.csv'.format(datetime.now())
+
+    pd.DataFrame({
+        'seg_id': [re.sub(regex, '', label) for label in test_labels[:10]],
+        'time_to_failure': predictions.squeeze()
+    }).to_csv(results_file_name)
 
 
 def perform_grid_search():
@@ -51,10 +65,44 @@ def perform_grid_search():
 
 
 def predict():
+    hp_file = 'lstm_grid_params.txt'
+
+    # load hyperparameters from file
+    with open(hp_file, 'r') as f:
+        model_args = ast.literal_eval(f.read())
+
     # train on input data and provide prediction on test data
-    pass
+    loader_args = {
+        'st_size': 10000,
+        'overlap_size': 5000,
+        'fft_f_cutoff': 500
+    }
+
+    train_args = {
+        'n_samples': 100,
+    }
+
+    fit_args = {
+        'epochs': 10,
+        'batch_size': 64
+    }
+
+    loader = LANLDataLoader()
+    train_data, train_target, test_data, test_labels = loader.load_train_val(
+        train_args=train_args, loader_args=loader_args)
+
+    model = MultiLSTM(loader.get_input_shape(), **model_args)
+    model.fit([data.compute() for data in train_data], train_target, **fit_args)
+
+    predictions = model.predict([data.compute() for data in test_data])
+
+    regex = re.compile('.csv')
+    pd.DataFrame({
+        'seg_id': [re.sub(regex, '', label) for label in test_labels],
+        'time_to_failure': predictions.squeeze()
+    })
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    perform_grid_search()
+    test_basic_operation()

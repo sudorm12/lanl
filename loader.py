@@ -44,8 +44,8 @@ class DataLoader:
             loader_args = {}
 
         train_data, train_target = self.load_train_data(fit_transform=True, **train_args, **loader_args)
-        test_data, test_target = self.load_test_data(**test_args, **loader_args)
-        return train_data, train_target, test_data, test_target
+        test_data, test_labels = self.load_test_data(**test_args, **loader_args)
+        return train_data, train_target, test_data, test_labels
 
     @staticmethod
     def _yn_cols_to_boolean(df, cols):
