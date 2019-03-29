@@ -234,7 +234,7 @@ class MultiLSTM:
             lstm = LSTMLayer(
                 units=units,
                 kernel_regularizer=l2_reg,
-                dropout=dropout,
+                # dropout=dropout,
                 name='lstm_{}'.format(i)
             )(lstm_permute)
 

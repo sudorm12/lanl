@@ -118,9 +118,8 @@ def ts_reg_grid_search(model_class, data_loader, hp_file,
             time_cb = TimeHistory()
 
             # fit model and return training history
-            # TODO: move dask compute method to higher level
-            history = model.fit([data.compute() for data in data_train], target_train,
-                                validation_data=([data.compute() for data in data_val], target_val),
+            history = model.fit(data_train, target_train,
+                                validation_data=(data_val, target_val),
                                 callbacks=[time_cb], **fit_args)
 
             # store final validation mse and cumulative training time to results dataframe

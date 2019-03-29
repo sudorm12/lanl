@@ -58,7 +58,8 @@ class LANLDataLoader(DataLoader):
         else:
             raise ValueError('fit_transform set as False but no scaler fit exists')
 
-        data = [scaled_sample_statistics, scaled_stdft_samples]
+        logging.debug('Performing delayed computations...')
+        data = [scaled_sample_statistics.compute(), scaled_stdft_samples.compute()]
 
         logging.debug('Done')
         return data, target_labels
@@ -110,7 +111,8 @@ class LANLDataLoader(DataLoader):
             tuple(scaled_stdft_samples[0].compute().shape)
         ]
 
-        data = [scaled_sample_statistics, scaled_stdft_samples]
+        logging.debug('Performing delayed computations...')
+        data = [scaled_sample_statistics.compute(), scaled_stdft_samples.compute()]
         target = self._data_array[sample_index + self._sample_length, 1]
 
         logging.debug('Done')

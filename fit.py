@@ -22,8 +22,8 @@ def test_basic_operation():
     logging.debug(input_shapes)
 
     multi_lstm = MultiLSTM(input_shapes, [8, 32], 64)
-    history = multi_lstm.fit([data.compute() for data in train_data], train_target,
-                             validation_data=([data.compute() for data in val_data], val_target))
+    history = multi_lstm.fit(train_data, train_target,
+                             validation_data=(val_data, val_target))
 
     test_data, test_labels = loader.load_test_data()
     predictions = multi_lstm.predict([data[:10, :].compute() for data in test_data])
@@ -47,18 +47,18 @@ def perform_grid_search():
         'fft_f_cutoff': 500
     }
     train_args = {
-        'n_samples': 100,
+        'n_samples': 4000,
     }
     val_args = {
-        'n_samples': 40
+        'n_samples': 400
     }
 
     model_args = {
-        'lstm_gpu': False
+        'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 10,
-        'batch_size': 64
+        'epochs': 25,
+        'batch_size': 256
     }
 
     ts_reg_grid_search(MultiLSTM, LANLDataLoader, hp_file, loader_args, model_args, train_args, val_args, fit_args)
@@ -92,9 +92,9 @@ def predict():
         train_args=train_args, loader_args=loader_args)
 
     model = MultiLSTM(loader.get_input_shape(), **model_args)
-    model.fit([data.compute() for data in train_data], train_target, **fit_args)
+    model.fit(train_data, train_target, **fit_args)
 
-    predictions = model.predict([data.compute() for data in test_data])
+    predictions = model.predict(test_data)
 
     regex = re.compile('.csv')
     pd.DataFrame({
