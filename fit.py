@@ -111,4 +111,4 @@ def predict():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    test_basic_operation()
+    perform_grid_search()
