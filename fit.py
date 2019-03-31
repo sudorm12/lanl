@@ -10,14 +10,20 @@ from grid_search import ts_reg_grid_search
 
 def test_basic_operation():
     train_args = {
-        'n_samples': 100,
+        'n_samples': 40,
     }
     val_args = {
-        'n_samples': 40
+        'n_samples': 10
+    }
+    loader_args = {
+        'st_size': 3000,
+        'overlap_size': 500,
+        'fft_f_cutoff': 500
     }
 
     loader = LANLDataLoader()
-    train_data, train_target, val_data, val_target = loader.load_train_val(train_args=train_args, val_args=val_args)
+    train_data, train_target, val_data, val_target = loader.load_train_val(
+        train_args=train_args, val_args=val_args, loader_args=loader_args)
     input_shapes = loader.get_input_shape()
     logging.debug(input_shapes)
 
@@ -42,22 +48,22 @@ def perform_grid_search():
     hp_file = 'lstm_grid_params.txt'
 
     loader_args = {
-        'st_size': 10000,
-        'overlap_size': 5000,
+        'st_size': 3000,
+        'overlap_size': 500,
         'fft_f_cutoff': 500
     }
     train_args = {
-        'n_samples': 4000,
+        'n_samples': 10000,
     }
     val_args = {
-        'n_samples': 400
+        'n_samples': 500
     }
 
     model_args = {
         'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 25,
+        'epochs': 50,
         'batch_size': 256
     }
 

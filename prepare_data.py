@@ -128,7 +128,7 @@ class LANLDataLoader(DataLoader):
     @staticmethod
     def overlapping_resample(x, sample_size, overlap_size):
         resample_index = np.concatenate([np.arange(i, i + sample_size) for i in
-                                         np.arange(0, x.shape[1] - sample_size + 1, sample_size - overlap_size)])
+                                         np.arange(x.shape[1] - sample_size, -1, -(sample_size - overlap_size))])
         resample = x[:, resample_index].reshape((x.shape[0], -1, sample_size))
         return resample
 
@@ -138,7 +138,8 @@ class LANLDataLoader(DataLoader):
             x.mean(axis=-1, keepdims=True),
             x.std(axis=-1, keepdims=True),
             x.max(axis=-1, keepdims=True),
-            x.min(axis=-1, keepdims=True)
+            x.min(axis=-1, keepdims=True),
+            np.moveaxis(np.percentile(x, q=[1, 5, 10, 25, 50, 75, 90, 95, 99], axis=-1), 0, 2)
         ], axis=2)
         return summary_stats
 
