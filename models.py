@@ -250,21 +250,21 @@ class MultiLSTM:
             for i, units in enumerate(dense_units):
                 # determine L2 regularization
                 try:
-                    l2_reg = l2(lstm_l2[i])
+                    l2_reg = l2(dense_l2[i])
                 except TypeError:
-                    l2_reg = l2(lstm_l2)
+                    l2_reg = l2(dense_l2)
                 except IndexError:
-                    l2_reg = l2(lstm_l2[-1])
-                    print('Mismatch between input shape and lstm l2 regularization values, using last lstm l2 value')
+                    l2_reg = l2(dense_l2[-1])
+                    print('Mismatch between input shape and dense l2 regularization values, using last dense l2 value')
 
                 # determine dropout
                 try:
-                    dropout = lstm_dropout[i]
+                    dropout = dense_dropout[i]
                 except TypeError:
-                    dropout = lstm_dropout
+                    dropout = dense_dropout
                 except IndexError:
-                    dropout = lstm_dropout[-1]
-                    print('Mismatch between input shape and lstm dropout values, using last lstm dropout value')
+                    dropout = dense_dropout[-1]
+                    print('Mismatch between input shape and dense dropout values, using last dense dropout value')
 
                 # create a dense layer with dropout
                 combined = Dense(

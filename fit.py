@@ -53,7 +53,7 @@ def perform_grid_search():
         'fft_f_cutoff': 500
     }
     train_args = {
-        'n_samples': 10000,
+        'n_samples': 5000,
     }
     val_args = {
         'n_samples': 500
