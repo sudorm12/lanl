@@ -48,7 +48,7 @@ def perform_grid_search():
     hp_file = 'lstm_grid_params.txt'
 
     loader_args = {
-        'st_size': 3000,
+        'st_size': 1500,
         'overlap_size': 500,
         'fft_f_cutoff': 500
     }
@@ -63,11 +63,12 @@ def perform_grid_search():
         'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 50,
+        'epochs': 40,
         'batch_size': 256
     }
 
-    ts_reg_grid_search(MultiLSTM, LANLDataLoader, hp_file, loader_args, model_args, train_args, val_args, fit_args)
+    ts_reg_grid_search(MultiLSTM, LANLDataLoader, hp_file, 
+                       loader_args, model_args, train_args, val_args, fit_args, draws=10)
 
 
 def predict():
