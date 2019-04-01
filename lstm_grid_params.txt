@@ -1,9 +1,9 @@
 {
 'lstm_units': [[16, 64]],
-'lstm_l2': [[1e-3, 1e-7], [1e-2, 1e-7], [1e-1, 1e-7], [1e-2, 1e-5]],
+'lstm_l2': [[1e-1, 1e-7], [1, 1e-7]],
 'lstm_dropout': [0],
-'dense_units': [[128, 64]],
-'dense_l2': [0],
-'dense_dropout': [0.2, 0.4],
+'dense_units': [[128, 64], [64, 64, 32]],
+'dense_l2': [0, 1e-7, 1e-5],
+'dense_dropout': [0.4],
 'optimizer': ['adam']
 }
