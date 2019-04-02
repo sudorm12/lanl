@@ -63,7 +63,7 @@ def perform_grid_search():
         'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 40,
+        'epochs': 25,
         'batch_size': 256
     }
 
