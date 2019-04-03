@@ -1,9 +1,10 @@
 {
-'lstm_units': [[4, 16], [8, 32], [8, 16], [16, 16]],
-'lstm_l2': [[0.1, 1e-6], [1, 1e-5], [0.1, 1e-5], [1, 1e-4]],
+'lstm_units': [[4, 16]],
+'lstm_l2': [[0.1, 1e-3], [1, 1e-4]],
 'lstm_dropout': [0],
-'dense_units': [[64, 64, 32], [32, 32, 16]],
+'dense_units': [[16, 16, 8], [32, 32, 16]],
 'dense_l2': [1e-7],
 'dense_dropout': [0.4],
+'lstm_backwards': [False, True]
 'optimizer': ['rmsprop']
 }

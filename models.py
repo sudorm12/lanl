@@ -167,7 +167,7 @@ class MultiLSTMWithMetadata:
 
 class MultiLSTM:
     def __init__(self, input_shapes, lstm_units, dense_units,
-                 lstm_l2=0, lstm_dropout=0, lstm_gpu=False,
+                 lstm_l2=0, lstm_dropout=0, lstm_gpu=False, lstm_backwards=False,
                  dense_l2=0, dense_dropout=0.2,
                  optimizer='adam'):
         """
@@ -235,6 +235,7 @@ class MultiLSTM:
                 units=units,
                 kernel_regularizer=l2_reg,
                 # dropout=dropout,
+                go_backwards=lstm_backwards,
                 name='lstm_{}'.format(i)
             )(lstm_permute)
 
