@@ -16,8 +16,8 @@ def test_basic_operation():
         'n_samples': 10
     }
     loader_args = {
-        'st_size': 3000,
-        'overlap_size': 500,
+        'fft_resample_params': {'sample_size': 10000, 'overlap_size': 5000},
+        'stat_resample_params': {'sample_size': 2000, 'overlap_size': 10},
         'fft_f_cutoff': 500
     }
 
@@ -112,4 +112,4 @@ def predict():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    perform_grid_search()
+    test_basic_operation()

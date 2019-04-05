@@ -184,6 +184,8 @@ class MultiLSTM:
         :param dense_dropout: list or real, the level of dropout to apply to each dense layer
         :param optimizer: the type of optimizer to use when compiling the keras model
         """
+        # find number of lstm inputs
+        self._n_inputs = len(input_shapes)
 
         # determine if LSTM networks will be GPU accelerated
         if lstm_gpu:
@@ -194,6 +196,7 @@ class MultiLSTM:
         # these lists will end up containing the lstm input and output layers
         inputs = []
         lstms = []
+        outputs = []
 
         # iterate over the provided input shapes and build up the lstm networks layer by layer
         for i, input_shape in enumerate(input_shapes):
@@ -239,9 +242,13 @@ class MultiLSTM:
                 name='lstm_{}'.format(i)
             )(lstm_permute)
 
+            # add an output to help each lstm training
+            lstm_output = Dense(1, activation='linear', name='lstm_{}_output'.format(i))(lstm)
+
             # add lstm inputs and outputs to their respective lists
             inputs.append(lstm_input)
             lstms.append(lstm)
+            outputs.append(lstm_output)
 
         # combine lstm outputs together
         combined = concatenate(lstms, name='combined')
@@ -296,6 +303,7 @@ class MultiLSTM:
             combined = Dense(
                 int(dense_units),
                 kernel_regularizer=l2_reg,
+                activation='relu',
                 name='combined_dense'
             )(combined)
             combined = Dropout(
@@ -304,14 +312,18 @@ class MultiLSTM:
             )(combined)
 
         # add an output layer
-        output = Dense(1, name='output')(combined)
+        output = Dense(1, activation='linear', name='output')(combined)
 
         # initialize the model and compile
-        self._model = Model(inputs=inputs, outputs=output)
-        self._model.compile(optimizer=optimizer, loss='mse')
+        self._model = Model(inputs=inputs, outputs=[output, *outputs])
+        self._model.compile(optimizer=optimizer, loss_weights=[1.] + [0.2] * self._n_inputs, loss='mse')
 
     def fit(self, data_train, target_train, validation_data=None, verbose=2, batch_size=64, epochs=5, callbacks=None):
-        history = self._model.fit(data_train, target_train, validation_data=validation_data, 
+        if validation_data is not None:
+            validation_data = (validation_data[0], [validation_data[1]] * (self._n_inputs + 1))
+
+        history = self._model.fit(data_train, [target_train] * (self._n_inputs + 1), 
+                                  validation_data=validation_data, 
                                   verbose=verbose, epochs=epochs, batch_size=batch_size, callbacks=callbacks)
         return history
 

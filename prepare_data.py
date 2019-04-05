@@ -64,20 +64,20 @@ class LANLDataLoader(DataLoader):
         logging.debug('Done')
         return data, target_labels
 
-    def load_train_data(self, split_index=None, fit_transform=True, n_samples=200,
-                        split_length=50000000, st_size=10000, overlap_size=5000, fft_f_cutoff=500):
+    def load_train_data(self, fit_transform=True, n_samples=200,
+                        fft_resample_params={'sample_size': 10000, 'overlap_size': 5000},
+                        stat_resample_params={'sample_size': 10000, 'overlap_size': 5000},
+                        fft_f_cutoff=500):
         """
         Load data from continuous file provided as training data for earthquake prediction. Selects
         n_samples random subsets of length as defined in the LANLDataLoader constructor. Returns a
         two-item tuple (data, target). Two data matrices provided are a rolling statistical summary
         and a short-time discrete fourier transform (ST-DFT) analysis.
-        :param split_index: TBD
         :param fit_transform: True to scale based on data selected in this draw, False to scale based
         on stored scaling from a previous draw
         :param n_samples: number of random subsets to draw from the input data
-        :param split_length: TBD
-        :param st_size: number of samples for each rolling block to calculate statistics and DFT
-        :param overlap_size: overlap size between each rolling block
+        :param fft_resample_params: arguments for overlapping_resample of data for FFT
+        :param stat_resample_params: arguments for overlapping_resample of data for summary statistics
         :param fft_f_cutoff: max frequency (in kHz) of returned fft based on timestep defined in
         LANLDataLoader constructor
         :return: two-item tuple (data, target), data being a two-item list returing rolling statistical
@@ -87,33 +87,57 @@ class LANLDataLoader(DataLoader):
         # get random samples from time series data and perform transformations on those samples
         logging.debug('Preparing {} random samples...'.format(n_samples))
         ts_sample, sample_index = self.get_random_samples(self._data_array[:, 0], n_samples, self._sample_length)
-        logging.debug('Calculating rolling statistics...')
-        ts_resample = self.overlapping_resample(ts_sample, st_size, overlap_size)
-        sample_statistics = self.get_summary_statistics(ts_resample)
-        logging.debug('Performing DFT...')
-        stdft_samples = np.abs(self.filtered_fft(ts_resample, self._t_step, fft_f_cutoff))
 
-        # scale data
-        logging.debug('Scaling data...')
+        # resample and calculate fft
+        logging.debug('Calculating DFT...')
+        fft_resample = self.overlapping_resample(ts_sample, **fft_resample_params)
+        stdft_samples = np.abs(self.filtered_fft(fft_resample, self._t_step, fft_f_cutoff)).compute()
+
+        # find scaling parameters for fft output
+        logging.debug('Scaling DFT...')
         if fit_transform:
-            self._stat_quartiles = dask.array.percentile(sample_statistics.flatten(), q=[20, 50, 80]).compute()
             self._fft_quartiles = np.percentile(stdft_samples, q=[20, 50, 80])
+
+            #self._fft_quartiles = np.zeros((3, stdft_samples.shape[1]))
+            #for i in range(stdft_samples.shape[1]): 
+            #    self._fft_quartiles[:, i] = np.percentile(stdft_samples[:, i, :], q=[20, 50, 80])
+
+        # resample and calculate bin statistics
+        logging.debug('Calculating rolling statistics...')
+        stat_resample = self.overlapping_resample(ts_sample, **stat_resample_params).compute()
+        sample_statistics = self.get_summary_statistics(stat_resample)
+
+        # find scaling parameters for statistics output
+        logging.debug('Scaling statistics...')
+        if fit_transform:
+            self._stat_quartiles = np.zeros((3, sample_statistics.shape[1]))
+            for i in range(sample_statistics.shape[1]):
+                self._stat_quartiles[:, i] = np.percentile(sample_statistics[:, i, :], q=[20, 50, 80])
+            #np.expand_dims(np.expand_dims(self._stat_quartiles, axis=0), axis=2)
+            #self._stat_quartiles = np.percentile(sample_statistics, q=[20, 50, 80])
+
+        # apply scaling
         if self._stat_quartiles is not None and self._fft_quartiles is not None:
-            scaled_sample_statistics = (sample_statistics - self._stat_quartiles[1]) / (self._stat_quartiles[2] - self._stat_quartiles[0])
-            scaled_stdft_samples = (stdft_samples - self._fft_quartiles[1]) / (self._fft_quartiles[2] - self._fft_quartiles[0])
+            sample_stat_center = np.atleast_3d(self._stat_quartiles[1, :])
+            sample_stat_scale = np.atleast_3d(self._stat_quartiles[2, :] - self._stat_quartiles[0, :])
+            scaled_sample_statistics = (sample_statistics - sample_stat_center) / sample_stat_scale
+
+            stdft_stat_center = np.atleast_3d(self._fft_quartiles[1])
+            stdft_stat_scale = np.atleast_3d(self._fft_quartiles[2] - self._fft_quartiles[0])
+            scaled_stdft_samples = (stdft_samples - stdft_stat_center) / stdft_stat_scale
         else:
             raise ValueError('fit_transform set as False but no scaler fit exists')
 
         # set the input shape for dynamically creating neural network models later
         logging.debug('Calculating input shapes...')
         self._input_shape = [
-            tuple(scaled_sample_statistics.shape[1:]),
-            tuple(scaled_stdft_samples[0].compute().shape)
+            tuple(scaled_sample_statistics[0].shape),
+            tuple(scaled_stdft_samples[0].shape)
         ]
 
         logging.debug('Performing delayed computations...')
-        data = [scaled_sample_statistics.compute(), scaled_stdft_samples.compute()]
-        target = self._data_array[sample_index + self._sample_length, 1]
+        data = [scaled_sample_statistics, scaled_stdft_samples]
+        target = self._data_array[sample_index + self._sample_length, 1].compute()
 
         logging.debug('Done')
         return data, target
@@ -127,6 +151,12 @@ class LANLDataLoader(DataLoader):
 
     @staticmethod
     def overlapping_resample(x, sample_size, overlap_size):
+        """
+        :param x: the data to resample
+        :param sample_size: number of samples for each rolling block
+        :param overlap_size: overlap size between each rolling block
+        :return: array with resampled data
+        """
         resample_index = np.concatenate([np.arange(i, i + sample_size) for i in
                                          np.arange(x.shape[1] - sample_size, -1, -(sample_size - overlap_size))])
         resample = x[:, resample_index].reshape((x.shape[0], -1, sample_size))
@@ -134,12 +164,12 @@ class LANLDataLoader(DataLoader):
 
     @staticmethod
     def get_summary_statistics(x):
-        summary_stats = dask.array.concatenate([
+        summary_stats = np.concatenate([
             x.mean(axis=-1, keepdims=True),
             x.std(axis=-1, keepdims=True),
             x.max(axis=-1, keepdims=True),
             x.min(axis=-1, keepdims=True),
-            np.moveaxis(np.percentile(x, q=[1, 5, 10, 25, 50, 75, 90, 95, 99], axis=-1), 0, 2)
+            *[np.percentile(x, q=qt, axis=-1, keepdims=True) for qt in [1, 5, 10, 25, 50, 75, 90, 95, 99]]
         ], axis=2)
         return summary_stats
 

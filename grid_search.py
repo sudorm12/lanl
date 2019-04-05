@@ -123,7 +123,7 @@ def ts_reg_grid_search(model_class, data_loader, hp_file,
                                 callbacks=[time_cb], **fit_args)
 
             # store final validation mse and cumulative training time to results dataframe
-            history_mse = history.history['val_loss'][-1]
+            history_mse = history.history['val_output_loss'][-1]
             history_time = np.sum(time_cb.times)
             results_array[j, :] = results_array[j, :] + np.array(history_mse, history_time)
             pre_results_df = pd.DataFrame(results_array, columns=results_df_cols)
