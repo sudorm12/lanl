@@ -48,8 +48,8 @@ def perform_grid_search():
     hp_file = 'lstm_grid_params.txt'
 
     loader_args = {
-        'st_size': 1500,
-        'overlap_size': 500,
+        'fft_resample_params': {'sample_size': 10000, 'overlap_size': 5000},
+        'stat_resample_params': {'sample_size': 2000, 'overlap_size': 10},
         'fft_f_cutoff': 500
     }
     train_args = {
@@ -63,7 +63,7 @@ def perform_grid_search():
         'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 25,
+        'epochs': 35,
         'batch_size': 256
     }
 
