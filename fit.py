@@ -17,7 +17,7 @@ def test_basic_operation():
     }
     loader_args = {
         'fft_resample_params': {'sample_size': 10000, 'overlap_size': 5000},
-        'stat_resample_params': {'sample_size': 2000, 'overlap_size': 10},
+        'stat_resample_params': {'sample_size': 400, 'overlap_size': 10},
         'fft_f_cutoff': 500
     }
 
@@ -63,7 +63,7 @@ def perform_grid_search():
         'lstm_gpu': True
     }
     fit_args = {
-        'epochs': 35,
+        'epochs': 65,
         'batch_size': 256
     }
 
@@ -112,4 +112,4 @@ def predict():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    test_basic_operation()
+    perform_grid_search()
