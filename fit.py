@@ -17,7 +17,8 @@ def test_basic_operation():
     }
     loader_args = {
         'fft_resample_params': {'sample_size': 10000, 'overlap_size': 5000},
-        'stat_resample_params': {'sample_size': 400, 'overlap_size': 10},
+        'stat_resample_params': [{'sample_size': 2000, 'overlap_size': 200}, 
+                                 {'sample_size': 500, 'overlap_size': 50}],
         'fft_f_cutoff': 500
     }
 
@@ -27,20 +28,20 @@ def test_basic_operation():
     input_shapes = loader.get_input_shape()
     logging.debug(input_shapes)
 
-    multi_lstm = MultiLSTM(input_shapes, [8, 32], 64)
+    multi_lstm = MultiLSTM(input_shapes, [8, 8, 32], 64)
     history = multi_lstm.fit(train_data, train_target,
                              validation_data=(val_data, val_target))
 
-    test_data, test_labels = loader.load_test_data()
-    predictions = multi_lstm.predict([data[:10, :].compute() for data in test_data])
+    #test_data, test_labels = loader.load_test_data()
+    #predictions = multi_lstm.predict([data[:10, :].compute() for data in test_data])
 
-    regex = re.compile('.csv')
-    results_file_name = 'data/results/test_predictions_{:%Y%m%d_%H%M%S}.csv'.format(datetime.now())
+    #regex = re.compile('.csv')
+    #results_file_name = 'data/results/test_predictions_{:%Y%m%d_%H%M%S}.csv'.format(datetime.now())
 
-    pd.DataFrame({
-        'seg_id': [re.sub(regex, '', label) for label in test_labels[:10]],
-        'time_to_failure': predictions.squeeze()
-    }).to_csv(results_file_name)
+    #pd.DataFrame({
+    #    'seg_id': [re.sub(regex, '', label) for label in test_labels[:10]],
+    #    'time_to_failure': predictions.squeeze()
+    #}).to_csv(results_file_name)
 
 
 def perform_grid_search():
@@ -49,7 +50,9 @@ def perform_grid_search():
 
     loader_args = {
         'fft_resample_params': {'sample_size': 10000, 'overlap_size': 5000},
-        'stat_resample_params': {'sample_size': 2000, 'overlap_size': 10},
+        'stat_resample_params': [{'sample_size': 2000, 'overlap_size': 200}, 
+                                 {'sample_size': 500, 'overlap_size': 50},
+                                 {'sample_size': 100, 'overlap_size': 10}],
         'fft_f_cutoff': 500
     }
     train_args = {
@@ -112,4 +115,4 @@ def predict():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    perform_grid_search()
+    test_basic_operation()

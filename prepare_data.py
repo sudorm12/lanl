@@ -66,7 +66,7 @@ class LANLDataLoader(DataLoader):
 
     def load_train_data(self, fit_transform=True, n_samples=200,
                         fft_resample_params={'sample_size': 10000, 'overlap_size': 5000},
-                        stat_resample_params={'sample_size': 10000, 'overlap_size': 5000},
+                        stat_resample_params=[{'sample_size': 10000, 'overlap_size': 5000}],
                         fft_f_cutoff=500):
         """
         Load data from continuous file provided as training data for earthquake prediction. Selects
@@ -77,7 +77,8 @@ class LANLDataLoader(DataLoader):
         on stored scaling from a previous draw
         :param n_samples: number of random subsets to draw from the input data
         :param fft_resample_params: arguments for overlapping_resample of data for FFT
-        :param stat_resample_params: arguments for overlapping_resample of data for summary statistics
+        :param stat_resample_params: list of dicts of arguments for overlapping_resample of data 
+        for summary statistics
         :param fft_f_cutoff: max frequency (in kHz) of returned fft based on timestep defined in
         LANLDataLoader constructor
         :return: two-item tuple (data, target), data being a two-item list returing rolling statistical
@@ -98,29 +99,31 @@ class LANLDataLoader(DataLoader):
         if fit_transform:
             self._fft_quartiles = np.percentile(stdft_samples, q=[20, 50, 80])
 
-            #self._fft_quartiles = np.zeros((3, stdft_samples.shape[1]))
-            #for i in range(stdft_samples.shape[1]): 
-            #    self._fft_quartiles[:, i] = np.percentile(stdft_samples[:, i, :], q=[20, 50, 80])
-
         # resample and calculate bin statistics
         logging.debug('Calculating rolling statistics...')
-        stat_resample = self.overlapping_resample(ts_sample, **stat_resample_params).compute()
-        sample_statistics = self.get_summary_statistics(stat_resample)
+
+        stat_resample = [
+            self.overlapping_resample(ts_sample, **params).compute() for params in stat_resample_params
+        ]
+        sample_statistics = [
+            self.get_summary_statistics(stats) for stats in stat_resample
+        ]
 
         # find scaling parameters for statistics output
         logging.debug('Scaling statistics...')
         if fit_transform:
-            self._stat_quartiles = np.zeros((3, sample_statistics.shape[1]))
-            for i in range(sample_statistics.shape[1]):
-                self._stat_quartiles[:, i] = np.percentile(sample_statistics[:, i, :], q=[20, 50, 80])
-            #np.expand_dims(np.expand_dims(self._stat_quartiles, axis=0), axis=2)
-            #self._stat_quartiles = np.percentile(sample_statistics, q=[20, 50, 80])
+            self._stat_quartiles = np.zeros((len(sample_statistics), 3, sample_statistics[0].shape[2]))
+            for i in range(len(sample_statistics)):
+                for j in range(sample_statistics[i].shape[2]):
+                    self._stat_quartiles[i, :, j] = np.percentile(sample_statistics[i][:, :, j], q=[20, 50, 80])
 
         # apply scaling
         if self._stat_quartiles is not None and self._fft_quartiles is not None:
-            sample_stat_center = np.atleast_3d(self._stat_quartiles[1, :])
-            sample_stat_scale = np.atleast_3d(self._stat_quartiles[2, :] - self._stat_quartiles[0, :])
-            scaled_sample_statistics = (sample_statistics - sample_stat_center) / sample_stat_scale
+            scaled_sample_statistics = []
+            for i in range(len(sample_statistics)):
+                sample_stat_center = self._stat_quartiles[i, 1, :]
+                sample_stat_scale = self._stat_quartiles[i, 2, :] - self._stat_quartiles[i, 0, :]
+                scaled_sample_statistics.append((sample_statistics[i] - sample_stat_center) / sample_stat_scale)
 
             stdft_stat_center = np.atleast_3d(self._fft_quartiles[1])
             stdft_stat_scale = np.atleast_3d(self._fft_quartiles[2] - self._fft_quartiles[0])
@@ -131,12 +134,12 @@ class LANLDataLoader(DataLoader):
         # set the input shape for dynamically creating neural network models later
         logging.debug('Calculating input shapes...')
         self._input_shape = [
-            tuple(scaled_sample_statistics[0].shape),
+            *[tuple(scaled_stats[0].shape) for scaled_stats in scaled_sample_statistics],
             tuple(scaled_stdft_samples[0].shape)
         ]
 
         logging.debug('Performing delayed computations...')
-        data = [scaled_sample_statistics, scaled_stdft_samples]
+        data = [*scaled_sample_statistics, scaled_stdft_samples]
         target = self._data_array[sample_index + self._sample_length, 1].compute()
 
         logging.debug('Done')
@@ -169,6 +172,7 @@ class LANLDataLoader(DataLoader):
             x.std(axis=-1, keepdims=True),
             x.max(axis=-1, keepdims=True),
             x.min(axis=-1, keepdims=True),
+            np.diff(x).max(axis=-1, keepdims=True),
             *[np.percentile(x, q=qt, axis=-1, keepdims=True) for qt in [1, 5, 10, 25, 50, 75, 90, 95, 99]]
         ], axis=2)
         return summary_stats
