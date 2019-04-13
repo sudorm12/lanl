@@ -239,7 +239,7 @@ class MultiLSTM:
                 kernel_regularizer=l2_reg,
                 # dropout=dropout,
                 go_backwards=lstm_backwards,
-                activation='relu',
+                # activation='relu', # relu activation not supported for gpu lstm
                 name='lstm_{}'.format(i)
             )(lstm_permute)
 

@@ -121,6 +121,7 @@ class LANLDataLoader(DataLoader):
         if self._stat_quartiles is not None and self._fft_quartiles is not None:
             scaled_sample_statistics = []
             for i in range(len(sample_statistics)):
+                logging.debug(self._stat_quartiles)
                 sample_stat_center = self._stat_quartiles[i, 1, :]
                 sample_stat_scale = self._stat_quartiles[i, 2, :] - self._stat_quartiles[i, 0, :]
                 scaled_sample_statistics.append((sample_statistics[i] - sample_stat_center) / sample_stat_scale)
