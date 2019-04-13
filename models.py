@@ -167,7 +167,7 @@ class MultiLSTMWithMetadata:
 
 class MultiLSTM:
     def __init__(self, input_shapes, lstm_units, dense_units,
-                 lstm_l2=0, lstm_dropout=0, lstm_gpu=False, lstm_backwards=False,
+                 lstm_l2=0, lstm_dropout=0, lstm_gpu=False, lstm_backwards=False, lstm_weight=0.2,
                  dense_l2=0, dense_dropout=0.2,
                  optimizer='adam'):
         """
@@ -239,6 +239,7 @@ class MultiLSTM:
                 kernel_regularizer=l2_reg,
                 # dropout=dropout,
                 go_backwards=lstm_backwards,
+                activation='relu',
                 name='lstm_{}'.format(i)
             )(lstm_permute)
 
@@ -278,6 +279,7 @@ class MultiLSTM:
                 combined = Dense(
                     units,
                     kernel_regularizer=l2_reg,
+                    activation='relu',
                     name='combined_dense_{}'.format(i)
                 )(combined)
                 combined = Dropout(
@@ -316,7 +318,7 @@ class MultiLSTM:
 
         # initialize the model and compile
         self._model = Model(inputs=inputs, outputs=[output, *outputs])
-        self._model.compile(optimizer=optimizer, loss_weights=[1.] + [0.2] * self._n_inputs, loss='mse')
+        self._model.compile(optimizer=optimizer, loss_weights=[1.] + [lstm_weight] * self._n_inputs, loss='mse')
 
     def fit(self, data_train, target_train, validation_data=None, verbose=2, batch_size=64, epochs=5, callbacks=None):
         if validation_data is not None:

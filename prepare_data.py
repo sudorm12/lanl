@@ -137,6 +137,7 @@ class LANLDataLoader(DataLoader):
             *[tuple(scaled_stats[0].shape) for scaled_stats in scaled_sample_statistics],
             tuple(scaled_stdft_samples[0].shape)
         ]
+        logging.debug(self._input_shape)
 
         logging.debug('Performing delayed computations...')
         data = [*scaled_sample_statistics, scaled_stdft_samples]
